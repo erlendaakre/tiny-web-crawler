@@ -19,19 +19,17 @@ object Crawler extends zio.ZIOAppDefault {
       _   <- printLine(res)
     } yield ()
 
-  private def getUrl  = {
+  private def getUrl =
     readLine.map(s => if(s.isBlank) SampleUrl else s).map(s => if(s.endsWith("/")) s else s"$s/")
       .mapAttempt(s => new URL(s)).catchAll {
       _ => printLine(s"Error, invalid URL, using fallback: $SampleUrl") *> ZIO.succeed(new URL(SampleUrl))
     }
-  }
 
-  private def crawl(startUrl: URL) = {
+  private def crawl(startUrl: URL) =
     for {
       body  <- readPage(startUrl)
       links <- extractLinks(body, startUrl)
     } yield (startUrl, links.flatten)
-  }
 
   private def extractLinks(html: String, baseUrl: URL) =
     ZIO.attempt(UrlPattern.findAllIn(html).toList.map(filterAndCreateURLs(_, baseUrl)))
