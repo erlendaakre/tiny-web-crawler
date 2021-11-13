@@ -8,4 +8,6 @@ package object tiny_web_crawler {
   implicit def JavaURLtoString(url: URL): String = url.toString
 
   val UrlPattern: Regex = """<a href=["']([^"']+)["']""".r
+
+  val ⏎ = util.Properties.lineSeparator
 }

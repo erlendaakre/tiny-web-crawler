@@ -3,6 +3,7 @@ package io.aakre.tiny_web_crawler
 import zio._
 import zio.Console._
 
+import java.io.{BufferedWriter, File, PrintWriter}
 import java.net.URL
 
 object Crawler extends zio.ZIOAppDefault {
@@ -27,6 +28,7 @@ object Crawler extends zio.ZIOAppDefault {
       _      <- mainLoop(state, base).repeatUntilZIO(_ => state.get.map(s => s.done))
       result <- state.get
       _      <- printResults(result)
+      _      <- persistResults(result)
     } yield result
 
   private def printResults(state: Crawler.CrawlerState) = {
@@ -35,6 +37,18 @@ object Crawler extends zio.ZIOAppDefault {
       top = state.result.toList.sortWith(_._2.size > _._2.size).head
       _   <- printLine(s"Page with most links: ${top._1} (${top._2.size})")
     } yield ()
+  }
+
+  private def persistResults(state: Crawler.CrawlerState) = {
+    ZIO.attempt {
+      val f = new File("result.txt")
+      println(s"Writing results to file: ${f.getAbsoluteFile.toString}")
+      val w = new BufferedWriter(new PrintWriter(f))
+      state.result.foreach { case (url, links) =>
+        w.append(url + ⏎ + "\t" + links.mkString(",") + ⏎)
+      }
+      w.close()
+    }
   }
 
   private def mainLoop(stateRef: Ref[CrawlerState], baseUrl: URL) =
@@ -65,11 +79,12 @@ object Crawler extends zio.ZIOAppDefault {
   private def filterAndCreateURLs(s: String, baseUrl: URL): Option[URL] = {
     val trimmed = if(s.startsWith("<a href=")) s.substring(9).dropRight(1) else s.dropRight(1)
 
-    if(trimmed.isBlank || trimmed == "/" || trimmed == "#") None
+    if(trimmed.isBlank || trimmed == "/") None
     else {
       if(trimmed.startsWith(baseUrl)) Some(new URL(trimmed))
       else if(trimmed.startsWith("#") || trimmed.startsWith("http") || trimmed.startsWith("mailto:")
-        || trimmed.startsWith("tel:") || trimmed.endsWith(".pdf") || trimmed.endsWith(".png")) None
+        || trimmed.startsWith("tel:") || trimmed.endsWith(".pdf") || trimmed.endsWith(".png")
+        || trimmed.endsWith(".jpg")) None
       else Some(new URL(baseUrl + (if(trimmed.startsWith("/")) trimmed.drop(1) else trimmed)))
     }
   }
