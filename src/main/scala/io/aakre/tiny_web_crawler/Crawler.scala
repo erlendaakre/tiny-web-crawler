@@ -22,7 +22,7 @@ object Crawler extends zio.ZIOAppDefault {
     for {
       _      <- printLine("Tiny web crawler")
       _      <- print(s"URL [$SampleUrl]:")
-      base    <- getStartUrl
+      base   <- getStartUrl
       _      <- printLine(s"Crawling $base...")
       state  <- CrawlerState.seed(base)
       _      <- mainLoop(state, base).repeatUntilZIO(_ => state.get.map(s => s.done))
@@ -31,38 +31,18 @@ object Crawler extends zio.ZIOAppDefault {
       _      <- persistResults(result)
     } yield result
 
-  private def printResults(state: Crawler.CrawlerState) = {
-    for {
-      _   <- printLine(s"Total urls crawled: ${state.result.keySet.size}")
-      top = state.result.toList.sortWith(_._2.size > _._2.size).head
-      _   <- printLine(s"Page with most links: ${top._1} (${top._2.size})")
-    } yield ()
-  }
-
-  private def persistResults(state: Crawler.CrawlerState) = {
-    ZIO.attempt {
-      val f = new File("result.txt")
-      println(s"Writing results to file: ${f.getAbsoluteFile.toString}")
-      val w = new BufferedWriter(new PrintWriter(f))
-      state.result.foreach { case (url, links) =>
-        w.append(url + ⏎ + "\t" + links.mkString(",") + ⏎)
-      }
-      w.close()
-    }
-  }
-
   private def mainLoop(stateRef: Ref[CrawlerState], baseUrl: URL) =
     for {
-      state <- stateRef.get
-      _     <- printLine(s"links checked: ${state.result.keySet.size}, remaining: ${state.linksToCheck.size}")
-      url   = state.linksToCheck.head
-      (_, links)     <- crawl(url, baseUrl)
-      _    <- stateRef.update(_.update(url, links))
+      state      <- stateRef.get
+      _          <- printLine(s"links checked: ${state.result.keySet.size}, remaining: ${state.linksToCheck.size}")
+      url        = state.linksToCheck.head
+      (_, links) <- crawl(url, baseUrl)
+      _          <- stateRef.update(_.update(url, links))
     } yield ()
 
 
   private def getStartUrl =
-    readLine.map(s => if(s.isBlank) SampleUrl else s).map(s => if(s.endsWith("/")) s else s"$s/")
+    readLine.map(s => if (s.isBlank) SampleUrl else s).map(s => if (s.endsWith("/")) s else s"$s/")
       .mapAttempt(s => new URL(s)).catchAll {
       _ => printLine(s"Error, invalid URL, using fallback: $SampleUrl") *> ZIO.succeed(new URL(SampleUrl))
     }
@@ -77,15 +57,15 @@ object Crawler extends zio.ZIOAppDefault {
     ZIO.attempt(UrlPattern.findAllIn(html).toSet.map(filterAndCreateURLs(_, baseUrl)))
 
   private def filterAndCreateURLs(s: String, baseUrl: URL): Option[URL] = {
-    val trimmed = if(s.startsWith("<a href=")) s.substring(9).dropRight(1) else s.dropRight(1)
+    val trimmed = if (s.startsWith("<a href=")) s.substring(9).dropRight(1) else s.dropRight(1)
 
-    if(trimmed.isBlank || trimmed == "/") None
+    if (trimmed.isBlank || trimmed == "/") None
     else {
-      if(trimmed.startsWith(baseUrl)) Some(new URL(trimmed))
-      else if(trimmed.startsWith("#") || trimmed.startsWith("http") || trimmed.startsWith("mailto:")
+      if (trimmed.startsWith(baseUrl)) Some(new URL(trimmed))
+      else if (trimmed.startsWith("#") || trimmed.startsWith("http") || trimmed.startsWith("mailto:")
         || trimmed.startsWith("tel:") || trimmed.endsWith(".pdf") || trimmed.endsWith(".png")
         || trimmed.endsWith(".jpg")) None
-      else Some(new URL(baseUrl + (if(trimmed.startsWith("/")) trimmed.drop(1) else trimmed)))
+      else Some(new URL(baseUrl + (if (trimmed.startsWith("/")) trimmed.drop(1) else trimmed)))
     }
   }
 
@@ -96,4 +76,22 @@ object Crawler extends zio.ZIOAppDefault {
       src.close()
       res
     }.catchAll(err => printLine(s"ERROR: unable to read $url\n$err") *> ZIO.succeed(""))
+
+  private def printResults(state: Crawler.CrawlerState) =
+    for {
+      _   <- printLine(s"Total urls crawled: ${state.result.keySet.size}")
+      top = state.result.toList.sortWith(_._2.size > _._2.size).head
+      _   <- printLine(s"Page with most links: ${top._1} (${top._2.size})")
+    } yield ()
+
+  private def persistResults(state: Crawler.CrawlerState) =
+    ZIO.attempt {
+      val f = new File("result.txt")
+      println(s"Writing results to file: ${f.getAbsoluteFile.toString}")
+      val w = new BufferedWriter(new PrintWriter(f))
+      state.result.foreach { case (url, links) =>
+        w.append(url + ⏎ + "\t" + links.mkString(",") + ⏎)
+      }
+      w.close()
+    }
 }
