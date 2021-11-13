@@ -10,8 +10,7 @@ object Crawler extends zio.ZIOAppDefault {
 
   final case class CrawlerState(linksToCheck: Set[URL], result: Map[URL, Set[URL]]) { self =>
     def done: Boolean = linksToCheck.isEmpty
-    def hasVisited(url: URL): Boolean = result.contains(url)
-    def update(url: URL, links: Set[URL]) =
+    def update(url: URL, links: Set[URL]): CrawlerState =
       self.copy(linksToCheck ++ (links removedAll result.keySet) - url, result + (url -> links))
   }
   object CrawlerState {
