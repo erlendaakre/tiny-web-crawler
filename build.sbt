@@ -5,7 +5,6 @@ scalaVersion := "2.13.5"
 val zioVersion = "2.0.0-M4"
 
 libraryDependencies += "dev.zio" %% "zio" % zioVersion
-libraryDependencies += "com.lihaoyi" %% "requests" % "0.6.5"
 //libraryDependencies += "dev.zio" %% "zio-streams" % "1.0.7"
 //libraryDependencies += "dev.zio" %% "zio-process" % "0.3.0"
 //libraryDependencies += "dev.zio" %% "zio-json" % "0.1.4"

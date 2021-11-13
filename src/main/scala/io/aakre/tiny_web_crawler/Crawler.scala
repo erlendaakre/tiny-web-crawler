@@ -44,7 +44,12 @@ object Crawler extends zio.ZIOAppDefault {
     }
   }
 
-  private def readPage(url: URL) = ZIO.attempt(requests.get(url).text)
+  private def readPage(url: URL) =
+    ZIO.attempt {
+      val src = scala.io.Source.fromURL(url)(scala.io.Codec.UTF8)
+      val res = src.mkString
+      src.close()
+      res
+    }.catchAll(err => printLine(s"ERROR: unable to read $url") *> ZIO.fail(err))
 
-  type Result = Map[URL, List[URL]]
 }
