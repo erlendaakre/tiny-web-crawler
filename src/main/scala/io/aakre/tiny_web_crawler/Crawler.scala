@@ -8,6 +8,7 @@ import java.net.URL
 
 object Crawler extends zio.ZIOAppDefault {
   private val SampleUrl = "https://monzo.com/"
+  private val maxParallelism = 4
 
   final case class CrawlerState(linksToCheck: Set[URL], result: Map[URL, Set[URL]]) { self =>
     def done: Boolean = linksToCheck.isEmpty
@@ -34,12 +35,24 @@ object Crawler extends zio.ZIOAppDefault {
   private def mainLoop(stateRef: Ref[CrawlerState], baseUrl: URL) =
     for {
       state      <- stateRef.get
-      _          <- printLine(s"links checked: ${state.result.keySet.size}, remaining: ${state.linksToCheck.size}")
-      url        = state.linksToCheck.head
-      (_, links) <- crawl(url, baseUrl)
-      _          <- stateRef.update(_.update(url, links))
+      linksLeft  = state.linksToCheck.size
+      _          <- printLine(s"links checked: ${state.result.keySet.size}, remaining: $linksLeft")
+      urls       = state.linksToCheck.take(maxParallelism)
+      fibers     = parCrawl(urls, baseUrl, linksLeft)
+      links      = fibers.map(e => e.map(f => f.join))
+      res        <- collect(links, stateRef)
+//      _          <- stateRef.update(_.update(url, collect(links)))
     } yield ()
 
+  private def parCrawl(urls: Set[URL], baseUrl: URL, availableWork: Int) = {
+    urls.map(url => crawl(url, baseUrl).fork)
+  }
+
+  def collect(links: Set[ZIO[Has[Console], Nothing, IO[Throwable, (URL, Set[URL])]]]) = {
+    links.map { e =>
+      e.map(f => f.map(r => r))
+    }
+  }
 
   private def getStartUrl =
     readLine.map(s => if (s.isBlank) SampleUrl else s).map(s => if (s.endsWith("/")) s else s"$s/")
